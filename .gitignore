@@ -1,0 +1,33 @@
+# Ambientes virtuais
+venv/
+env/
+.venv/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Variáveis e arquivos de configuração locais
+.env
+*.env
+
+# Cache de testes
+.cache/
+.pytest_cache/
+
+# Editor VS Code
+.vscode/
+
+# Checkpoints de notebooks
+.ipynb_checkpoints/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs e bancos locais
+*.log
+*.sqlite3
+*.db
