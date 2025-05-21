@@ -13,11 +13,14 @@ def draw_bar(x, height):
     d = 0.5  # profundidade
     h = height
     
-    # Definindo as cores com base na altura (gradiente de azul para vermelho)
-    r = min(1.0, height / 40.0)  # Mais alto = mais vermelho
-    g = 0.2
-    b = max(0.0, 1.0 - height / 40.0)  # Mais baixo = mais azul
-    
+    # Gradiente de roxo (0.5, 0.0, 0.5) → laranja (1.0, 0.5, 0.0)
+    max_height = 40.0
+    factor = min(1.0, height / max_height)
+
+    r = 0.5 + 0.5 * factor  # vermelho: 0.5 → 1.0
+    g = 0.0 + 0.5 * factor  # verde:    0.0 → 0.5
+    b = 0.5 - 0.5 * factor  # azul:     0.5 → 0.0
+
     glColor3f(r, g, b)
     
     vertices = [
@@ -56,7 +59,7 @@ def setup_lighting():
     glLightfv(GL_LIGHT0, GL_POSITION, [10, 50, 100, 1])
     
     # Intensidade e cor da luz
-    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.2, 0.2, 0.2, 1])
+    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.7, 0.7, 0.7, 1])
     glLightfv(GL_LIGHT0, GL_DIFFUSE, [0.8, 0.8, 0.8, 1])
     
     # Configuração do material
@@ -88,24 +91,6 @@ def draw_scene(values, camera_angle_x, camera_angle_y, camera_distance):
     for i, v in enumerate(values):
         height = (v / max_height) * 30  # Reduzindo um pouco a altura para caber melhor na tela
         draw_bar(offset + i * spacing, height)
-    
-    # Desenhando eixos para referência
-    glDisable(GL_LIGHTING)
-    glBegin(GL_LINES)
-    # Eixo X - vermelho
-    glColor3f(1, 0, 0)
-    glVertex3f(-50, 0, 0)
-    glVertex3f(50, 0, 0)
-    # Eixo Y - verde
-    glColor3f(0, 1, 0)
-    glVertex3f(0, -50, 0)
-    glVertex3f(0, 50, 0)
-    # Eixo Z - azul
-    glColor3f(0, 0, 1)
-    glVertex3f(0, 0, -50)
-    glVertex3f(0, 0, 50)
-    glEnd()
-    glEnable(GL_LIGHTING)
     
     pygame.display.flip()
 
@@ -178,7 +163,7 @@ def main():
     
     # Configuração do OpenGL
     glEnable(GL_DEPTH_TEST)
-    glClearColor(0.05, 0.05, 0.1, 1.0)  # Azul escuro quase preto
+    glClearColor(0.9, 0.9, 0.9, 1.0)  # Azul escuro quase preto
     
     # Configuração da perspectiva
     glMatrixMode(GL_PROJECTION)
@@ -249,7 +234,7 @@ def main():
                 dy = current_mouse_pos[1] - last_mouse_pos[1]
                 
                 # Atualiza os ângulos da câmera
-                camera_angle_x += dx * 0.5  # Sensibilidade horizontal
+                camera_angle_x -= dx * 0.5  # Sensibilidade horizontal
                 camera_angle_y += dy * 0.5  # Sensibilidade vertical
                 
                 # Limita o ângulo vertical para evitar inversões estranhas
@@ -261,7 +246,7 @@ def main():
         
         if not paused and current_step < len(steps) - 1:
             current_step += 1
-            pygame.time.wait(100)  # Ajustar velocidade da animação
+            pygame.time.wait(10)  # Ajustar velocidade da animação
         
         clock.tick(60)
         
