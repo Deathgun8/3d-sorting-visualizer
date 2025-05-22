@@ -83,6 +83,13 @@ class SoundManager:
         """Ajusta o volume (0.0 a 1.0)"""
         self.volume = max(0.0, min(1.0, volume))
 
+    def play_merge_sound(self, value, index, max_value):
+        if not self.enabled:
+            return
+        frequency = 180 + (value / max_value) * 250
+        sound = self.create_tone(frequency, 0.05)
+        sound.play()
+
 def draw_bar(x, height):
     w = 0.5  # largura
     d = 0.5  # profundidade
@@ -148,8 +155,269 @@ def setup_lighting():
     
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
 
-def draw_scene(values, camera_angle_x, camera_angle_y, camera_distance):
+def draw_text_bitmap(text, x, y, color=(1.0, 1.0, 1.0)):
+    """Desenha texto usando caracteres bitmap simples"""
+    # Implementação básica de bitmap para letras essenciais
+    # Cada caractere é definido em uma grade 8x12
+    
+    char_width = 12
+    char_height = 16
+    spacing = 2
+    
+    glColor3f(color[0], color[1], color[2])
+    glPointSize(2.0)
+    
+    current_x = x
+    
+    # Dicionário com padrões de bitmap para caracteres necessários
+    char_patterns = {
+        'B': [
+            "████████",
+            "█      █",
+            "█      █", 
+            "█      █",
+            "████████",
+            "█      █",
+            "█      █",
+            "█      █",
+            "████████"
+        ],
+        'U': [
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "████████"
+        ],
+        'L': [
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "████████"
+        ],
+        'E': [
+            "████████",
+            "█       ",
+            "█       ",
+            "█       ",
+            "████████",
+            "█       ",
+            "█       ",
+            "█       ",
+            "████████"
+        ],
+        'S': [
+            "████████",
+            "█       ",
+            "█       ",
+            "█       ",
+            "████████",
+            "       █",
+            "       █",
+            "       █",
+            "████████"
+        ],
+        'O': [
+            "████████",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "████████"
+        ],
+        'R': [
+            "████████",
+            "█      █",
+            "█      █",
+            "█      █",
+            "████████",
+            "█   █   ",
+            "█    █  ",
+            "█     █ ",
+            "█      █"
+        ],
+        'T': [
+            "████████",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    "
+        ],
+        'M': [
+            "█      █",
+            "██    ██",
+            "█ █  █ █",
+            "█  ██  █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █"
+        ],
+        'G': [
+            "████████",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█   ████",
+            "█      █",
+            "█      █",
+            "█      █",
+            "████████"
+        ],
+        ' ': [
+            "        ",
+            "        ",
+            "        ",
+            "        ",
+            "        ",
+            "        ",
+            "        ",
+            "        ",
+            "        "
+        ]
+    }
+    
+    for char in text.upper():
+        if char in char_patterns:
+            pattern = char_patterns[char]
+            for row, line in enumerate(pattern):
+                for col, pixel in enumerate(line):
+                    if pixel == '█':
+                        glBegin(GL_POINTS)
+                        glVertex2f(current_x + col, y + row * 2)
+                        glEnd()
+        current_x += char_width + spacing
+
+def get_text_bounds(text, x, y):
+    """Retorna os limites (bounds) de um texto para detecção de clique"""
+    char_width = 12
+    spacing = 2
+    char_height = 18
+    
+    text_width = len(text) * (char_width + spacing)
+    return {
+        'x': x,
+        'y': y,
+        'width': text_width,
+        'height': char_height
+    }
+
+def is_point_in_bounds(point_x, point_y, bounds):
+    """Verifica se um ponto está dentro dos limites especificados"""
+    return (bounds['x'] <= point_x <= bounds['x'] + bounds['width'] and
+            bounds['y'] <= point_y <= bounds['y'] + bounds['height'])
+
+def draw_menu_bar(display_width, display_height, active_algorithm):
+    """Desenha a barra de menu estática no topo da tela"""
+    # Salvar o estado atual da matriz
+    glPushMatrix()
+    
+    # Configurar projeção ortográfica para desenho 2D
+    glMatrixMode(GL_PROJECTION)
+    glPushMatrix()
+    glLoadIdentity()
+    glOrtho(0, display_width, display_height, 0, -1, 1)
+    
+    glMatrixMode(GL_MODELVIEW)
+    glLoadIdentity()
+    
+    # Desabilitar iluminação e teste de profundidade para o menu
+    glDisable(GL_LIGHTING)
+    glDisable(GL_DEPTH_TEST)
+    
+    # Habilitar blending para transparência
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    
+    # Desenhar fundo da barra de menu (cinza claro translúcido)
+    menu_height = 100
+    glColor4f(0.8, 0.8, 0.8, 0.85)  # Cinza claro com 85% de opacidade
+    glBegin(GL_QUADS)
+    glVertex2f(0, 0)
+    glVertex2f(display_width, 0)
+    glVertex2f(display_width, menu_height)
+    glVertex2f(0, menu_height)
+    glEnd()
+    
+    # Desenhar linha de separação na parte inferior
+    glColor4f(0.5, 0.5, 0.5, 1.0)  # Cinza mais escuro
+    glLineWidth(2.0)
+    glBegin(GL_LINES)
+    glVertex2f(0, menu_height)
+    glVertex2f(display_width, menu_height)
+    glEnd()
+    
+    # Posições dos textos
+    bubble_text_x = 50
+    bubble_text_y = 30
+    merge_text_x = 300
+    merge_text_y = 30
+    
+    # Desenhar fundo de destaque para o algoritmo ativo
+    if active_algorithm == "bubble":
+        bounds = get_text_bounds("BUBBLE SORT", bubble_text_x, bubble_text_y)
+        glColor4f(0.9, 0.8, 1.0, 0.6)  # Roxo muito claro para destaque
+        glBegin(GL_QUADS)
+        glVertex2f(bounds['x'] - 5, bounds['y'] - 5)
+        glVertex2f(bounds['x'] + bounds['width'] + 5, bounds['y'] - 5)
+        glVertex2f(bounds['x'] + bounds['width'] + 5, bounds['y'] + bounds['height'] + 5)
+        glVertex2f(bounds['x'] - 5, bounds['y'] + bounds['height'] + 5)
+        glEnd()
+    elif active_algorithm == "merge":
+        bounds = get_text_bounds("MERGE SORT", merge_text_x, merge_text_y)
+        glColor4f(0.9, 0.8, 1.0, 0.6)  # Roxo muito claro para destaque
+        glBegin(GL_QUADS)
+        glVertex2f(bounds['x'] - 5, bounds['y'] - 5)
+        glVertex2f(bounds['x'] + bounds['width'] + 5, bounds['y'] - 5)
+        glVertex2f(bounds['x'] + bounds['width'] + 5, bounds['y'] + bounds['height'] + 5)
+        glVertex2f(bounds['x'] - 5, bounds['y'] + bounds['height'] + 5)
+        glEnd()
+    
+    # Desenhar texto "BUBBLE SORT" 
+    bubble_color = (0.4, 0.2, 0.6) if active_algorithm == "bubble" else (0.6, 0.4, 0.8)
+    draw_text_bitmap("BUBBLE SORT", bubble_text_x, bubble_text_y, bubble_color)
+    
+    # Desenhar texto "MERGE SORT"
+    merge_color = (0.4, 0.2, 0.6) if active_algorithm == "merge" else (0.6, 0.4, 0.8)
+    draw_text_bitmap("MERGE SORT", merge_text_x, merge_text_y, merge_color)
+    
+    # Restaurar configurações
+    glDisable(GL_BLEND)
+    glEnable(GL_DEPTH_TEST)
+    
+    # Restaurar matrizes
+    glMatrixMode(GL_PROJECTION)
+    glPopMatrix()
+    glMatrixMode(GL_MODELVIEW)
+    glPopMatrix()
+    
+    # Retornar os bounds para detecção de clique
+    return {
+        'bubble': get_text_bounds("BUBBLE SORT", bubble_text_x, bubble_text_y),
+        'merge': get_text_bounds("MERGE SORT", merge_text_x, merge_text_y)
+    }
+
+def draw_scene(values, camera_angle_x, camera_angle_y, camera_distance, display_size, active_algorithm):
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+    
+    # Desenhar a visualização 3D
     glLoadIdentity()
     
     camera_x = camera_distance * math.sin(math.radians(camera_angle_x)) * math.cos(math.radians(camera_angle_y))
@@ -172,12 +440,23 @@ def draw_scene(values, camera_angle_x, camera_angle_y, camera_distance):
         height = (v / max_height) * 30
         draw_bar(offset + i * spacing, height)
     
-    pygame.display.flip()
-
-def run_visualizer():
-    print("Tentando executar bubble_sort.exe...")
+    # Desenhar a barra de menu por último (sobreposta) e retornar bounds
+    menu_bounds = draw_menu_bar(display_size[0], display_size[1], active_algorithm)
     
-    exe_name = 'bubble_sort.exe' if sys.platform == 'win32' else './bubble_sort'
+    pygame.display.flip()
+    
+    return menu_bounds
+
+def run_visualizer(algorithm="bubble"):
+    print(f"Tentando executar {algorithm}_sort.exe...")
+    
+    if algorithm == "bubble":
+        exe_name = 'bubble_sort.exe' if sys.platform == 'win32' else './bubble_sort'
+    elif algorithm == "merge":
+        exe_name = 'merge_sort.exe' if sys.platform == 'win32' else './merge_sort'
+    else:
+        print(f"Algoritmo '{algorithm}' não reconhecido!")
+        return generate_test_data()
     
     try:
         if not os.path.exists(exe_name):
@@ -187,7 +466,7 @@ def run_visualizer():
         proc = subprocess.Popen([exe_name], stdout=subprocess.PIPE, text=True)
         steps = []
         
-        print("Lendo saída do programa C...")
+        print(f"Lendo saída do programa {algorithm} sort...")
         for line in proc.stdout:
             try:
                 step = list(map(int, line.strip().split()))
@@ -232,7 +511,7 @@ def main():
     pygame.init()
     display = (1280, 720)
     pygame.display.set_mode(display, DOUBLEBUF | OPENGL)
-    pygame.display.set_caption("Visualizador 3D de Bubble Sort com Som")
+    pygame.display.set_caption("Visualizador 3D de Algoritmos de Ordenação")
     
     # Inicializar gerenciador de som
     sound_manager = SoundManager()
@@ -245,7 +524,10 @@ def main():
     gluPerspective(45, (display[0] / display[1]), 0.1, 500.0)
     glMatrixMode(GL_MODELVIEW)
     
-    steps = run_visualizer()
+    # Algoritmo ativo (padrão: bubble)
+    active_algorithm = "bubble"
+    
+    steps = run_visualizer(active_algorithm)
     
     if not steps:
         print("Nenhum dado para visualizar. Saindo.")
@@ -257,6 +539,7 @@ def main():
     camera_distance = 80
     mouse_dragging = False
     last_mouse_pos = None
+    menu_bounds = None
     
     clock = pygame.time.Clock()
     current_step = 0
@@ -266,6 +549,7 @@ def main():
     
     print("Iniciando visualização...")
     print("Controles:")
+    print("- Clique nos nomes dos algoritmos para trocar")
     print("- Arraste o mouse para girar a câmera")
     print("- Roda do mouse para zoom in/out")
     print("- Espaço para pausar/continuar")
@@ -300,9 +584,33 @@ def main():
                 elif event.key == K_ESCAPE:
                     running = False
             elif event.type == MOUSEBUTTONDOWN:
-                if event.button == 1:
-                    mouse_dragging = True
-                    last_mouse_pos = pygame.mouse.get_pos()
+                if event.button == 1:  # Clique esquerdo
+                    mouse_pos = pygame.mouse.get_pos()
+                    
+                    # Verificar clique nos algoritmos
+                    if menu_bounds:
+                        if is_point_in_bounds(mouse_pos[0], mouse_pos[1], menu_bounds['bubble']):
+                            if active_algorithm != "bubble":
+                                print("Trocando para Bubble Sort...")
+                                active_algorithm = "bubble"
+                                steps = run_visualizer(active_algorithm)
+                                current_step = 0
+                                previous_step_data = None
+                        elif is_point_in_bounds(mouse_pos[0], mouse_pos[1], menu_bounds['merge']):
+                            if active_algorithm != "merge":
+                                print("Trocando para Merge Sort...")
+                                active_algorithm = "merge"
+                                steps = run_visualizer(active_algorithm)
+                                current_step = 0
+                                previous_step_data = None
+                        else:
+                            # Clique fora do menu - iniciar arrastar câmera
+                            if mouse_pos[1] > 100:  # Abaixo da barra de menu
+                                mouse_dragging = True
+                                last_mouse_pos = mouse_pos
+                    else:
+                        mouse_dragging = True
+                        last_mouse_pos = mouse_pos
                 elif event.button == 4:
                     camera_distance = max(10, camera_distance - 5)
                 elif event.button == 5:
@@ -321,23 +629,30 @@ def main():
                 
                 last_mouse_pos = current_mouse_pos
         
+        # Verificar se ainda temos dados válidos
+        if not steps:
+            continue
+            
         # Detectar mudanças entre passos para tocar sons
         current_data = steps[current_step]
         if previous_step_data and current_data != previous_step_data:
             max_value = max(current_data) if current_data else 1
             
             # Encontrar diferenças entre os arrays
-            for i in range(len(current_data)):
-                if current_data[i] != previous_step_data[i]:
-                    # Encontrar o par que foi trocado
-                    for j in range(i + 1, len(current_data)):
-                        if (current_data[j] != previous_step_data[j] and 
-                            current_data[i] == previous_step_data[j] and 
-                            current_data[j] == previous_step_data[i]):
-                            # Toca som de troca
-                            sound_manager.play_swap_sound(current_data[i], current_data[j], max_value)
-                            break
-                    break
+            if active_algorithm == "bubble":
+                for i in range(len(current_data)):
+                    if current_data[i] != previous_step_data[i]:
+                        for j in range(i + 1, len(current_data)):
+                            if (current_data[j] != previous_step_data[j] and 
+                                current_data[i] == previous_step_data[j] and 
+                                current_data[j] == previous_step_data[i]):
+                                sound_manager.play_swap_sound(current_data[i], current_data[j], max_value)
+                                break
+                        break
+            elif active_algorithm == "merge":
+                for i in range(len(current_data)):
+                    if current_data[i] != previous_step_data[i]:
+                        sound_manager.play_merge_sound(current_data[i], i, max_value)
         
         # Verificar se chegou ao final
         if current_step == len(steps) - 1 and previous_step_data != current_data:
@@ -345,12 +660,12 @@ def main():
             if current_data == sorted(current_data):
                 sound_manager.play_completion_sound()
         
-        draw_scene(current_data, camera_angle_x, camera_angle_y, camera_distance)
+        menu_bounds = draw_scene(current_data, camera_angle_x, camera_angle_y, camera_distance, display, active_algorithm)
         previous_step_data = current_data.copy()
         
         if not paused and current_step < len(steps) - 1:
             current_step += 1
-            pygame.time.wait(50)  # Velocidade ajustada para melhor sincronização com som
+            pygame.time.wait(100)  # Velocidade ajustada para melhor sincronização com som
         
         clock.tick(60)
         

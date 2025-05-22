@@ -5,9 +5,9 @@
 
 #define SIZE 50
 
-void print_array(int arr[], int size) 
+void print_array(int arr[]) 
 {
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < SIZE; i++)
         printf("%d ", arr[i]);
 
     printf("\n");
@@ -21,7 +21,7 @@ int main()
     for (int i = 0; i < SIZE; i++)
         arr[i] = rand() % 100 + 1;
 
-    print_array(arr, SIZE);
+    print_array(arr);
 
     for (int i = 0; i < SIZE - 1; i++) 
     {
