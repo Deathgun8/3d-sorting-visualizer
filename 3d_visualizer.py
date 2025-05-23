@@ -62,6 +62,50 @@ class SoundManager:
         sound = self.create_tone(frequency, 0.15)  # Som mais longo para trocas
         sound.play()
     
+    def play_quicksort_pivot_sound(self, pivot_value, max_value):
+        """Toca som especial para o pivot do quicksort"""
+        if not self.enabled:
+            return
+        
+        # Som distintivo para o pivot - frequência mais alta e duração curta
+        frequency = 400 + (pivot_value / max_value) * 300
+        
+        # Tom com modulação para se destacar
+        sample_rate = 22050
+        duration = 0.08
+        frames = int(duration * sample_rate)
+        
+        # Criar onda com modulação para som mais interessante
+        t = np.linspace(0, duration, frames)
+        wave_array = np.sin(2 * np.pi * frequency * t) * np.sin(10 * np.pi * t)
+        
+        # Aplicar envelope
+        fade_frames = frames // 8
+        wave_array[:fade_frames] *= np.linspace(0, 1, fade_frames)
+        wave_array[-fade_frames:] *= np.linspace(1, 0, fade_frames)
+        
+        # Ajustar volume
+        wave_array = (wave_array * self.volume * 0.8 * 32767).astype(np.int16)
+        
+        # Converter para stereo
+        stereo_wave = np.array([wave_array, wave_array]).T
+        stereo_wave = np.ascontiguousarray(stereo_wave)
+        
+        sound = pygame.sndarray.make_sound(stereo_wave)
+        sound.play()
+    
+    def play_quicksort_partition_sound(self, left_idx, right_idx, array_length):
+        """Toca som para indicar particionamento no quicksort"""
+        if not self.enabled:
+            return
+        
+        # Som baseado na posição da partição
+        position_ratio = (left_idx + right_idx) / (2 * array_length)
+        frequency = 250 + position_ratio * 200
+        
+        sound = self.create_tone(frequency, 0.06)
+        sound.play()
+    
     def play_completion_sound(self):
         """Toca som de conclusão quando a ordenação termina"""
         if not self.enabled:
@@ -281,6 +325,50 @@ def draw_text_bitmap(text, x, y, color=(1.0, 1.0, 1.0)):
             "█      █",
             "████████"
         ],
+        'Q': [
+            "████████",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█      █",
+            "█   █  █",
+            "█    █ █",
+            "█      █",
+            "████████"
+        ],
+        'I': [
+            "████████",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "   █    ",
+            "████████"
+        ],
+        'C': [
+            "████████",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "█       ",
+            "████████"
+        ],
+        'K': [
+            "█      █",
+            "█     █ ",
+            "█    █  ",
+            "█   █   ",
+            "████    ",
+            "█   █   ",
+            "█    █  ",
+            "█     █ ",
+            "█      █"
+        ],
         ' ': [
             "        ",
             "        ",
@@ -364,11 +452,13 @@ def draw_menu_bar(display_width, display_height, active_algorithm):
     glVertex2f(display_width, menu_height)
     glEnd()
     
-    # Posições dos textos
+    # Posições dos textos - reorganizadas para incluir Quick Sort
     bubble_text_x = 50
     bubble_text_y = 30
-    merge_text_x = 300
+    merge_text_x = 280
     merge_text_y = 30
+    quick_text_x = 500
+    quick_text_y = 30
     
     # Desenhar fundo de destaque para o algoritmo ativo
     if active_algorithm == "bubble":
@@ -389,6 +479,15 @@ def draw_menu_bar(display_width, display_height, active_algorithm):
         glVertex2f(bounds['x'] + bounds['width'] + 5, bounds['y'] + bounds['height'] + 5)
         glVertex2f(bounds['x'] - 5, bounds['y'] + bounds['height'] + 5)
         glEnd()
+    elif active_algorithm == "quick":
+        bounds = get_text_bounds("QUICK SORT", quick_text_x, quick_text_y)
+        glColor4f(0.9, 0.8, 1.0, 0.6)  # Roxo muito claro para destaque
+        glBegin(GL_QUADS)
+        glVertex2f(bounds['x'] - 5, bounds['y'] - 5)
+        glVertex2f(bounds['x'] + bounds['width'] + 5, bounds['y'] - 5)
+        glVertex2f(bounds['x'] + bounds['width'] + 5, bounds['y'] + bounds['height'] + 5)
+        glVertex2f(bounds['x'] - 5, bounds['y'] + bounds['height'] + 5)
+        glEnd()
     
     # Desenhar texto "BUBBLE SORT" 
     bubble_color = (0.4, 0.2, 0.6) if active_algorithm == "bubble" else (0.6, 0.4, 0.8)
@@ -397,6 +496,10 @@ def draw_menu_bar(display_width, display_height, active_algorithm):
     # Desenhar texto "MERGE SORT"
     merge_color = (0.4, 0.2, 0.6) if active_algorithm == "merge" else (0.6, 0.4, 0.8)
     draw_text_bitmap("MERGE SORT", merge_text_x, merge_text_y, merge_color)
+    
+    # Desenhar texto "QUICK SORT"
+    quick_color = (0.4, 0.2, 0.6) if active_algorithm == "quick" else (0.6, 0.4, 0.8)
+    draw_text_bitmap("QUICK SORT", quick_text_x, quick_text_y, quick_color)
     
     # Restaurar configurações
     glDisable(GL_BLEND)
@@ -411,7 +514,8 @@ def draw_menu_bar(display_width, display_height, active_algorithm):
     # Retornar os bounds para detecção de clique
     return {
         'bubble': get_text_bounds("BUBBLE SORT", bubble_text_x, bubble_text_y),
-        'merge': get_text_bounds("MERGE SORT", merge_text_x, merge_text_y)
+        'merge': get_text_bounds("MERGE SORT", merge_text_x, merge_text_y),
+        'quick': get_text_bounds("QUICK SORT", quick_text_x, quick_text_y)
     }
 
 def draw_scene(values, camera_angle_x, camera_angle_y, camera_distance, display_size, active_algorithm):
@@ -454,6 +558,8 @@ def run_visualizer(algorithm="bubble"):
         exe_name = 'bubble_sort.exe' if sys.platform == 'win32' else './bubble_sort'
     elif algorithm == "merge":
         exe_name = 'merge_sort.exe' if sys.platform == 'win32' else './merge_sort'
+    elif algorithm == "quick":
+        exe_name = 'quick_sort.exe' if sys.platform == 'win32' else './quick_sort'
     else:
         print(f"Algoritmo '{algorithm}' não reconhecido!")
         return generate_test_data()
@@ -506,6 +612,43 @@ def generate_test_data():
     
     print(f"Gerados {len(steps)} passos de teste")
     return steps
+
+def detect_quicksort_changes(current_data, previous_data, sound_manager):
+    """Detecta mudanças específicas do quicksort e toca sons apropriados"""
+    if not previous_data or len(current_data) != len(previous_data):
+        return
+    
+    max_value = max(current_data) if current_data else 1
+    changes = []
+    
+    # Encontrar todas as posições que mudaram
+    for i in range(len(current_data)):
+        if current_data[i] != previous_data[i]:
+            changes.append(i)
+    
+    # Se há exatamente 2 mudanças, provavelmente é uma troca (swap)
+    if len(changes) == 2:
+        i, j = changes
+        # Verificar se é realmente uma troca
+        if (current_data[i] == previous_data[j] and 
+            current_data[j] == previous_data[i]):
+            sound_manager.play_swap_sound(current_data[i], current_data[j], max_value)
+            return
+    
+    # Se há mudanças mais complexas, pode ser particionamento
+    if len(changes) > 2:
+        # Tocar som de particionamento baseado na extensão das mudanças
+        left_change = min(changes)
+        right_change = max(changes)
+        sound_manager.play_quicksort_partition_sound(left_change, right_change, len(current_data))
+        
+        # Identificar possível pivot (elemento que pode ter mudado de posição significativamente)
+        for i in changes:
+            # Se um elemento se moveu muito, pode ser o pivot sendo posicionado
+            old_pos = previous_data.index(current_data[i]) if current_data[i] in previous_data else -1
+            if old_pos != -1 and abs(i - old_pos) > 1:
+                sound_manager.play_quicksort_pivot_sound(current_data[i], max_value)
+                break
 
 def main():
     pygame.init()
@@ -603,6 +746,13 @@ def main():
                                 steps = run_visualizer(active_algorithm)
                                 current_step = 0
                                 previous_step_data = None
+                        elif is_point_in_bounds(mouse_pos[0], mouse_pos[1], menu_bounds['quick']):
+                            if active_algorithm != "quick":
+                                print("Trocando para Quick Sort...")
+                                active_algorithm = "quick"
+                                steps = run_visualizer(active_algorithm)
+                                current_step = 0
+                                previous_step_data = None
                         else:
                             # Clique fora do menu - iniciar arrastar câmera
                             if mouse_pos[1] > 100:  # Abaixo da barra de menu
@@ -638,8 +788,9 @@ def main():
         if previous_step_data and current_data != previous_step_data:
             max_value = max(current_data) if current_data else 1
             
-            # Encontrar diferenças entre os arrays
+            # Detectar mudanças específicas para cada algoritmo
             if active_algorithm == "bubble":
+                # Lógica original para bubble sort
                 for i in range(len(current_data)):
                     if current_data[i] != previous_step_data[i]:
                         for j in range(i + 1, len(current_data)):
@@ -650,23 +801,45 @@ def main():
                                 break
                         break
             elif active_algorithm == "merge":
+                # Lógica original para merge sort
                 for i in range(len(current_data)):
                     if current_data[i] != previous_step_data[i]:
                         sound_manager.play_merge_sound(current_data[i], i, max_value)
-        
-        # Verificar se chegou ao final
-        if current_step == len(steps) - 1 and previous_step_data != current_data:
-            # Array está ordenado, tocar som de conclusão
-            if current_data == sorted(current_data):
-                sound_manager.play_completion_sound()
-        
+            elif active_algorithm == "quick":
+                # Nova lógica específica para quick sort
+                detect_quicksort_changes(current_data, previous_step_data, sound_manager)
+
+        # Verificar se chegou ao final - CORREÇÃO AQUI
+        if current_step == len(steps) - 1:
+            # Verificar se é a primeira vez que chegamos ao final
+            if not hasattr(main, 'completion_played'):
+                main.completion_played = {}
+            
+            # Criar uma chave única para este processo de ordenação
+            array_key = f"{active_algorithm}_{str(current_data)}"
+            
+            # Se ainda não tocamos o som de conclusão para este array
+            if array_key not in main.completion_played:
+                # Verificar se o array está realmente ordenado
+                if current_data == sorted(current_data):
+                    sound_manager.play_completion_sound()
+                    main.completion_played[array_key] = True
+                    print(f"Som de conclusão tocado para {active_algorithm}")  # Debug
+
         menu_bounds = draw_scene(current_data, camera_angle_x, camera_angle_y, camera_distance, display, active_algorithm)
-        previous_step_data = current_data.copy()
-        
+
+        # IMPORTANTE: Só atualizar previous_step_data depois de todas as verificações
+        if previous_step_data != current_data:
+            previous_step_data = current_data.copy()
+
         if not paused and current_step < len(steps) - 1:
             current_step += 1
-            pygame.time.wait(100)  # Velocidade ajustada para melhor sincronização com som
-        
+            # Velocidade ajustada baseada no algoritmo
+            if active_algorithm == "quick":
+                pygame.time.wait(80)  # Um pouco mais lento para quick sort devido à complexidade sonora
+            else:
+                pygame.time.wait(60)  # Velocidade padrão
+
         clock.tick(60)
         
     pygame.quit()

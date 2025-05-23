@@ -19,7 +19,7 @@ int main()
     srand(time(NULL));
 
     for (int i = 0; i < SIZE; i++)
-        arr[i] = rand() % 100 + 1;
+        arr[i] = rand() % 200 + 1;
 
     print_array(arr);
 
